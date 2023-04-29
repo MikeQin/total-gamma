@@ -1,0 +1,8 @@
+streamlit
+yfinance
+selenium
+scipy
+pandas
+matplotlib
+bs4
+lxml
