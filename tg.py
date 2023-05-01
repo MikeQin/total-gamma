@@ -122,10 +122,10 @@ dfAgg = df.groupby(['StrikePrice']).sum(numeric_only=True)
 strikes = dfAgg.index.values
 
 fdf['CallGEX'] = fdf['CallGamma'] * fdf['CallOpenInt'] * 100 * spotPrice * spotPrice * 0.01
-fdf['PutGEX'] = fdf['PutGamma'] * fdf['PutOpenInt'] * 100 * spotPrice * spotPrice * 0.01 # REMOVE: -1 gamma
+fdf['PutGEX'] = fdf['PutGamma'] * fdf['PutOpenInt'] * 100 * spotPrice * spotPrice * 0.01 # REMOVE: * -1 gamma
 
 fdf['CallGEXVol'] = fdf['CallGamma'] * fdf['CallVol'] * 100 * spotPrice * spotPrice * 0.01
-fdf['PutGEXVol'] = fdf['PutGamma'] * fdf['PutVol'] * 100 * spotPrice * spotPrice * 0.01 * -1
+fdf['PutGEXVol'] = fdf['PutGamma'] * fdf['PutVol'] * 100 * spotPrice * spotPrice * 0.01 # REMOVE: * -1 gamma
 
 fdf['TotalGamma'] = (fdf.CallGEX + fdf.PutGEX) / 10**9
 fdf['TotalGEX'] = (fdf.CallGEX - fdf.PutGEX) / 10**9
@@ -190,10 +190,11 @@ totalGammaExNext = np.array(totalGammaExNext) / 10**9
 totalGammaExFri = np.array(totalGammaExFri) / 10**9
 
 # Calculate Major Call GEX and Put GEX VOL
-callGEXInd = np.argmax(fdfAgg['CallGEXVol'].to_numpy() / 10**9)
+callGEXInd = np.argmax(fdfAgg['CallGEX'].to_numpy() / 10**9)
 callGEXMajor = strikes[callGEXInd]
-putGEXInd = np.argmin(fdfAgg['PutGEXVol'].to_numpy() / 10**9)
+putGEXInd = np.argmax(fdfAgg['PutGEX'].to_numpy() / 10**9)
 putGEXMajor = strikes[putGEXInd]
+print("putGEXInd", putGEXInd)
 
 # Find Gamma Flip Point
 zeroCrossIdx = np.where(np.diff(np.sign(totalGamma)))[0]
@@ -235,8 +236,8 @@ plt.grid()
 plt.bar(strikes, fdfAgg['TotalGamma'].to_numpy(), width=4, linewidth=0.1, edgecolor='k', color='#344feb', label="Total Gamma")
 plt.xlim([fromStrike, toStrike])
 # chartTitle = 'SPX Total GEX by OI for ' + expiry_date + ' Expiration' # todayDate.strftime('%b-%d-%Y')
-chartTitle = "Total Gamma: $" + str("{:.2f}".format(fdfAgg['TotalGamma'].sum())) + " Bn per 1% SPX Move, Expire: " + expiry_date
-plt.title(chartTitle, fontweight="bold", fontsize=20)
+chartTitle = "Total Gamma: $" + str("{:.2f}".format(fdfAgg['TotalGamma'].sum())) + " Bn, Expire: " + expiry_date
+plt.title(chartTitle, fontweight="bold", fontsize=18)
 plt.legend()
 plt.xlabel('Strike (data from CBOE on ' +generated_datetime.strftime('%m-%d-%Y %I:%M %p')+ ')', fontweight="bold")
 plt.ylabel('Spot Gamma ($ billions/1% move)', fontweight="bold")
@@ -248,24 +249,24 @@ plt.legend()
 plt.show()
 
 # Chart 2: Absolute Gamma Exposure by Calls and Puts OI
-# plt.grid()
-# plt.bar(strikes, fdfAgg['CallGEXVol'].to_numpy() / 10**9, width=6, linewidth=0.1, edgecolor='k', label="Call Gamma VOL", color='#cefcb8')
-# plt.bar(strikes, fdfAgg['PutGEXVol'].to_numpy() / 10**9, width=6, linewidth=0.1, edgecolor='k', label="Put Gamma VOL", color='#e69b6a')
-# plt.bar(strikes, fdfAgg['CallGEX'].to_numpy() / 10**9, width=6, linewidth=0.1, edgecolor='k', label="Call Gamma OI", color='#4dba1a')
-# plt.bar(strikes, fdfAgg['PutGEX'].to_numpy() / 10**9, width=6, linewidth=0.1, edgecolor='k', label="Put Gamma OI", color='#f23030')
-# plt.xlim([fromStrike, toStrike])
-# # chartTitle = "Total Gamma: $" + str("{:.2f}".format(df['TotalGamma'].sum())) + " Bn per 1% SPX Move"
+plt.grid()
+plt.bar(strikes, fdfAgg['CallGEXVol'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Call Gamma VOL", color='#cefcb8')
+plt.bar(strikes, fdfAgg['PutGEXVol'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Put Gamma VOL", color='#e69b6a')
+plt.bar(strikes, fdfAgg['CallGEX'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Call Gamma OI", color='#4dba1a')
+plt.bar(strikes, fdfAgg['PutGEX'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Put Gamma OI", color='#f23030')
+plt.xlim([fromStrike, toStrike])
+chartTitle = "GEX: $" + str("{:.2f}".format(fdfAgg['TotalGEX'].sum())) + " Bn per 1% SPX Move, Expire: " + expiry_date
 # chartTitle = 'SPX GEX for ' + expiry_date + ' Expiration' # todayDate.strftime('%b-%d-%Y')
-# plt.title(chartTitle, fontweight="bold", fontsize=20)
-# plt.xlabel('Strike  (data from CBOE on ' +generated_datetime.strftime('%m-%d-%Y %I:%M %p')+ ')', fontweight="bold")
-# plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
-# plt.axvline(x=spotPrice, color='r', lw=1, label="SPX Spot:" + str("{:,.2f}".format(spotPrice)))
-# # plt.axvline(x=zeroGamma, color='b', lw=1, label="Zero Gamma: " + str("{:,.2f}".format(zeroGamma)))
-# plt.axvline(x=callGEXMajor, color='#005b96', lw=1, label="Call Major Gamma: " + str("{:,.0f}".format(callGEXMajor)))
-# plt.axvline(x=putGEXMajor, color='#005b96', lw=1, label="Put Major Gamma: " + str("{:,.0f}".format(putGEXMajor)))
-# plt.xticks(create_xticks(fromStrike, toStrike), rotation=45, fontsize=8)
-# plt.legend()
-# plt.show()
+plt.title(chartTitle, fontweight="bold", fontsize=18)
+plt.xlabel('Strike  (data from CBOE on ' +generated_datetime.strftime('%m-%d-%Y %I:%M %p')+ ')', fontweight="bold")
+plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
+plt.axvline(x=spotPrice, color='r', lw=1, label="SPX Spot:" + str("{:,.2f}".format(spotPrice)))
+# plt.axvline(x=zeroGamma, color='b', lw=1, label="Zero Gamma: " + str("{:,.2f}".format(zeroGamma)))
+plt.axvline(x=callGEXMajor, color='#005b96', lw=1, label="Call Major Gamma: " + str("{:,.0f}".format(callGEXMajor)))
+plt.axvline(x=putGEXMajor, color='#005b96', lw=1, label="Put Major Gamma: " + str("{:,.0f}".format(putGEXMajor)))
+plt.xticks(create_xticks(fromStrike, toStrike), rotation=45, fontsize=8)
+plt.legend()
+plt.show()
 
 # Chart 3: Absolute Gamma Exposure by Calls and Puts VOL
 # plt.grid()
