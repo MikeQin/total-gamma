@@ -123,9 +123,11 @@ strikes = dfAgg.index.values
 
 fdf['CallGEX'] = fdf['CallGamma'] * fdf['CallOpenInt'] * 100 * spotPrice * spotPrice * 0.01
 fdf['PutGEX'] = fdf['PutGamma'] * fdf['PutOpenInt'] * 100 * spotPrice * spotPrice * 0.01 # REMOVE: * -1 gamma
+fdf['PutGEXNegative'] = fdf['PutGamma'] * fdf['PutOpenInt'] * 100 * spotPrice * spotPrice * 0.01 * -1 # REMOVE: * -1 gamma
 
 fdf['CallGEXVol'] = fdf['CallGamma'] * fdf['CallVol'] * 100 * spotPrice * spotPrice * 0.01
 fdf['PutGEXVol'] = fdf['PutGamma'] * fdf['PutVol'] * 100 * spotPrice * spotPrice * 0.01 # REMOVE: * -1 gamma
+fdf['PutGEXVolNegative'] = fdf['PutGamma'] * fdf['PutVol'] * 100 * spotPrice * spotPrice * 0.01 * -1 # REMOVE: * -1 gamma
 
 fdf['TotalGamma'] = (fdf.CallGEX + fdf.PutGEX) / 10**9
 fdf['TotalGEX'] = (fdf.CallGEX - fdf.PutGEX) / 10**9
@@ -190,11 +192,11 @@ totalGammaExNext = np.array(totalGammaExNext) / 10**9
 totalGammaExFri = np.array(totalGammaExFri) / 10**9
 
 # Calculate Major Call GEX and Put GEX VOL
-callGEXInd = np.argmax(fdfAgg['CallGEX'].to_numpy() / 10**9)
+callGEXInd = np.argmax(fdfAgg['CallGEXVol'].to_numpy() / 10**9)
 callGEXMajor = strikes[callGEXInd]
-putGEXInd = np.argmax(fdfAgg['PutGEX'].to_numpy() / 10**9)
+putGEXInd = np.argmax(fdfAgg['PutGEXVol'].to_numpy() / 10**9)
 putGEXMajor = strikes[putGEXInd]
-print("putGEXInd", putGEXInd)
+# print("putGEXInd", putGEXInd)
 
 # Find Gamma Flip Point
 zeroCrossIdx = np.where(np.diff(np.sign(totalGamma)))[0]
@@ -229,8 +231,8 @@ props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
 # place a text box in upper left in axes coords
 ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=12,
         verticalalignment='top', bbox=props)
-ax.text(0.5, 0.5, 'Mike Total Gamma', transform=ax.transAxes,
-        fontsize=40, color='gray', alpha=0.5,
+ax.text(0.5, 0.5, 'Mike SPX Option Chart', transform=ax.transAxes,
+        fontsize=40, color='#e6e4e1', alpha=0.5,
         ha='center', va='center', rotation=30)
 plt.grid()
 plt.bar(strikes, fdfAgg['TotalGamma'].to_numpy(), width=4, linewidth=0.1, edgecolor='k', color='#344feb', label="Total Gamma")
@@ -238,7 +240,32 @@ plt.xlim([fromStrike, toStrike])
 # chartTitle = 'SPX Total GEX by OI for ' + expiry_date + ' Expiration' # todayDate.strftime('%b-%d-%Y')
 chartTitle = "Total Gamma: $" + str("{:.2f}".format(fdfAgg['TotalGamma'].sum())) + " Bn, Expire: " + expiry_date
 plt.title(chartTitle, fontweight="bold", fontsize=18)
+plt.xlabel('Strike (data from CBOE on ' +generated_datetime.strftime('%m-%d-%Y %I:%M %p')+ ')', fontweight="bold")
+plt.ylabel('Spot Gamma ($ billions/1% move)', fontweight="bold")
+# plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
+plt.axvline(x=spotPrice, color='r', lw=1, label="SPX Spot: " + str("{:,.2f}".format(spotPrice)))
+# plt.axvline(x=zeroGamma, color='g', lw=1, label="Zero Gamma: " + str("{:,.0f}".format(zeroGamma)))
+plt.xticks(create_xticks(fromStrike, toStrike), rotation=45, fontsize=8)
 plt.legend()
+plt.show()
+
+# Chart 1.1: Net Gamma Exposure by OI
+fig, ax = plt.subplots()
+textstr = '\n'.join((total_gex, top1_LG, top2_LG, top3_LG))
+# these are matplotlib.patch.Patch properties
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+# place a text box in upper left in axes coords
+ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=12,
+        verticalalignment='top', bbox=props)
+ax.text(0.5, 0.5, 'Mike SPX Option Chart', transform=ax.transAxes,
+        fontsize=40, color='#e6e4e1', alpha=0.5,
+        ha='center', va='center', rotation=30)
+plt.grid()
+plt.bar(strikes, fdfAgg['TotalGEX'].to_numpy(), width=4, linewidth=0.1, edgecolor='k', color='#4e524f', label="Total (Net) Gamma")
+plt.xlim([fromStrike, toStrike])
+# chartTitle = 'SPX Total GEX by OI for ' + expiry_date + ' Expiration' # todayDate.strftime('%b-%d-%Y')
+chartTitle = "Total (Net) GEX: $" + str("{:.2f}".format(fdfAgg['TotalGEX'].sum())) + " Bn, Expire: " + expiry_date
+plt.title(chartTitle, fontweight="bold", fontsize=18)
 plt.xlabel('Strike (data from CBOE on ' +generated_datetime.strftime('%m-%d-%Y %I:%M %p')+ ')', fontweight="bold")
 plt.ylabel('Spot Gamma ($ billions/1% move)', fontweight="bold")
 # plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
@@ -249,11 +276,21 @@ plt.legend()
 plt.show()
 
 # Chart 2: Absolute Gamma Exposure by Calls and Puts OI
+fig, ax = plt.subplots()
+textstr = '\n'.join((total_gex, top1_LG, top2_LG, top3_LG))
+# these are matplotlib.patch.Patch properties
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+# place a text box in upper left in axes coords
+ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=12,
+        verticalalignment='top', bbox=props)
+ax.text(0.5, 0.5, 'Mike SPX Option Chart', transform=ax.transAxes,
+        fontsize=40, color='#e6e4e1', alpha=0.5,
+        ha='center', va='center', rotation=30)
 plt.grid()
 plt.bar(strikes, fdfAgg['CallGEXVol'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Call Gamma VOL", color='#cefcb8')
-plt.bar(strikes, fdfAgg['PutGEXVol'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Put Gamma VOL", color='#e69b6a')
+plt.bar(strikes, fdfAgg['PutGEXVolNegative'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Put Gamma VOL", color='#e69b6a')
 plt.bar(strikes, fdfAgg['CallGEX'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Call Gamma OI", color='#4dba1a')
-plt.bar(strikes, fdfAgg['PutGEX'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Put Gamma OI", color='#f23030')
+plt.bar(strikes, fdfAgg['PutGEXNegative'].to_numpy() / 10**9, width=3, linewidth=0.1, edgecolor='k', label="Put Gamma OI", color='#f23030')
 plt.xlim([fromStrike, toStrike])
 chartTitle = "GEX: $" + str("{:.2f}".format(fdfAgg['TotalGEX'].sum())) + " Bn per 1% SPX Move, Expire: " + expiry_date
 # chartTitle = 'SPX GEX for ' + expiry_date + ' Expiration' # todayDate.strftime('%b-%d-%Y')
